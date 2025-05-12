@@ -1,0 +1,60 @@
+---
+title: "re_tidy"
+author: "Simon Rüegg"
+date: "2025-03-03"
+output: html_document
+---
+
+# Report Exercise
+
+## Loading Packeges
+
+```{r}
+library(dplyr)
+library(lubridate)
+library(tidyr)
+library(readr)
+library(stringr)
+library(purrr)
+```
+
+## 1
+
+Downloading Data and safe file in ./ages_report_rueegg/data
+
+## 2
+
+Manually cleaning the Data and save as .csv file. 1. Delete empty rows 2. fill out name the experiment where it is missing 3. Add a column with just the year
+
+## 3
+
+Read in the manually cleaned csv-file.
+
+```{r}
+soil_carbon_storage <- read_csv2("../data/1249534s1-s6.csv") #read_csv2 for semicolons
+```
+
+Log-response ratio for each experiment
+
+```{r}
+# add new column log_response_ratio to the imported csv-file
+soil_carbon_storage <- soil_carbon_storage |> 
+  mutate(log_response_ratio = log((soil_carbon_storage$`increased CO2 (mean)`/soil_carbon_storage$`ambient CO2 (mean)`)))
+```
+
+Aggregating early, mid and late phases
+
+```{r}
+SOC_early_mid_late <- soil_carbon_storage |>
+    mutate(phase = case_when(`Time (years)` < 3 ~ "early",`Time (years)` >=3 & `Time (years)` <= 6 ~ "mid",`Time (years)` > 6 ~ "late")) |>  # case_when the set a new column for early, mid and late phase
+    group_by(phase) |> #Groups by early, mid and late
+    summarise(mean_phases = mean(log_response_ratio))
+knitr::kable(SOC_early_mid_late) |>
+  kableExtra::kable_styling()
+```
+
+##4 1. What are the Data that you are looking at? The Data in the .xlsx-file shows different measurements of ambient CO2 and increased CO2 for different experiments. The data also repetitions of each experiments once or several times over the years. This helps to see what changed over time (years).
+
+2.  What do you expect your analysis to show, what is your hypothesis? How should soil organic matter content change under elevated CO2? I expect the analysis to show how long can a soil matter content increase it's CO2 concentration under increasing CO2 concentration in the environment?
+
+3.  Interpret your results after aggregating the data: What do your final numbers mean? Do they support your initial hypothesis? Why so, why not? The Data in the table from the knitr::kable() function shows how the log_response_ratio changes between the early, mid and late phases of each experiment. The log_response_ratio is negative for the early and late phases, which means that in the mean for all experiments in the early and late phase the elevated CO2 is smaller then the ambient CO2. In the mid-phase the log_response_ratio is positive, which means that the mean elevated CO2 is higher then the ambient CO2. This could be, because the elavated CO2 bounded in the soil. I guess that because the result log-response is positive for the mid phases means that in this stage (3-6years) there is an effect from the incrased CO2 enviroment on the soil matter content.

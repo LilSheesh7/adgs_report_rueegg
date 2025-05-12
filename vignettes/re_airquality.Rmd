@@ -1,0 +1,149 @@
+---
+title: "re_airquality"
+author: "Simon Rüegg"
+date: "2025-03-10"
+output: html_document
+---
+
+# Report Excersie
+
+## Loading Libraries
+
+```{r}
+library(ggplot2)
+library(readr)
+library(lubridate)
+library(dplyr)
+```
+
+## Prepare the data
+
+```{r}
+#loading dataset airquality 
+airquality <- datasets::airquality
+help("airquality") # shows what the dataset airquality shows
+
+#new column with the date
+airquality$year <- "1973" #add column with the year 1973
+airquality$date <- as.Date(paste(airquality$year, airquality$Month, airquality$Day, sep = "-"), format = "%Y-%m-%d")
+
+#calculate monthly mean
+airquality_monthly_average <- airquality |>
+  tidyr::drop_na() |>#drop rows which contains na-values
+  group_by(Month) |>
+  summarise(Ozone = mean(Ozone),
+            Solar.R = mean(Solar.R),
+            Wind = mean(Wind),
+            Temp = mean(Temp))
+
+```
+
+### Description of the dataset airquality
+
+The Dataset shows air quality meassurments in New York from May 1973 to September 1973. The variables and each units are: [,1] Ozone numeric Ozone (ppb) [,2] Solar.R numeric Solar R (lang) [,3] Wind numeric Wind (mph) [,4] Temp numeric Temperature (degrees F) [,5] Month numeric Month (1--12) [,6] Day numeric Day of month (1--31) Here the brackets [] shows the column of the variable. More Details of the dataset airquality are found with help(airquality). It can also been seen the times and location of the measurments of the diffrent variables. Daily readings of the following air quality values for May 1, 1973 (a Tuesday) to September 30, 1973. Ozone: Mean ozone in parts per billion from 1300 to 1500 hours at Roosevelt Island Solar.R: Solar radiation in Langleys in the frequency band 4000–7700 Angstroms from 0800 to 1200 hours at Central Park Wind: Average wind speed in miles per hour at 0700 and 1000 hours at LaGuardia Airport Temp: Maximum daily temperature in degrees Fahrenheit at LaGuardia Airport.
+
+## Question which is answered with analyzing the dataset airquality
+
+Which factors (solar radiation, windspeed, temperature) have an impact on the ozone concentration?
+
+## creating figures the answer the question
+
+```{r}
+# create timeline with with equal values of each datatype
+#maximum values of each datatype
+airquality_max <- airquality_monthly_average |>
+  summarise(Month = Month, 
+            Ozone_max = max(Ozone),
+            Solar.R_max = max(Solar.R),
+            Wind_max = max(Wind),
+            Temp_max = max(Temp))
+
+
+#calculate faktor for each month
+airquality_monthly_equal_average <- airquality_monthly_average |>
+  mutate(Ozone = Ozone / airquality_max$Ozone_max,
+         Solar.R = Solar.R / airquality_max$Solar.R_max,
+         Wind = Wind / airquality_max$Wind_max,
+         Temp = Temp / airquality_max$Temp_max)
+
+#plot data 
+airquality_monthly_equal_average |>
+  ggplot(aes(x = Month)) +
+  geom_line(aes(y = Ozone, color = "Ozone")) + 
+  geom_line(aes(y = Solar.R, color = "Solar Radiation")) +
+  geom_line(aes(y = Wind, color = "Windspeed")) +
+  geom_line(aes(y = Temp, color = "Temperature")) +
+  labs(title = "Change of values during summer 1973",
+       x = "Month",
+       y = "Factor of the maximum value") +
+  theme_classic() +
+  theme(legend.position = c(0.6, 0.3)) +
+    scale_color_manual("",
+                       values = c("Ozone" = "darkred", "Solar Radiation" = "lightblue", "Windspeed" = "pink", "Temperature" = "orange"),
+                       labels = c("Ozone", "Solar Radiation", "Temperature", "Windspeed")) + #Wieso muss hier Windspeed nach Temperatur stehen, dass Legende mit der Graphik übereinstimmt.
+  scale_x_continuous(expand = c(0, 0)) +
+  scale_y_continuous(expand = c(0, 0)) +
+  scale_y_continuous(limits = c(0, 1))
+```
+
+This graphic shows which variables change similar to the concentration change of ozone. Here we see that when the concentration of ozone is high, the temperature and the solar radiation is also high. We also see that when the windspeed is lower the concentration of ozone is high.
+
+```{r}
+#create scaterplots  to see correlations between ozone and the other variables
+#Ozone and Solar Radiation
+ozone_solar_r <- airquality |>
+  ggplot(aes(x = Ozone, y = Solar.R)) +
+  geom_point() +
+  geom_smooth(method = "lm", col = "red") +
+  labs(title = "Linear regression between ozone and solar radiation",
+       x = "Ozone concentration (ppb)",
+       y = "Solar radiation (Langleys)")
+  theme_classic()
+
+#Ozone and Windspeed
+ozone_wind <- airquality |>
+  ggplot(aes(x = Ozone, y = Wind)) +
+  geom_point() +
+  geom_smooth(method = "lm", col = "red") +
+  labs(title = "Linear regressio between ozone and Windspeed",
+       x = "Ozone concentration (ppb)",
+       y = "Windspeed (mph)")
+  theme_classic()
+
+#Ozone and Temperature
+ozone_temp <- airquality |>
+  ggplot(aes(x = Ozone, y = Temp)) +
+  geom_point() +
+  geom_smooth(method = "lm", col = "red") +
+  labs(title = "Linear regression between ozone and temperature",
+       x = "Ozone concentration (ppb)",
+       y = "Temperature (°F)")
+  theme_classic()
+
+#combine the diffrent plots
+cowplot::plot_grid(ozone_solar_r, ozone_wind, ozone_temp)
+```
+This graphic shows the linear regression and the correlations between ozone and the different variables solar radiation, windspeed and temperature. As we can see there is a positive correlation between ozone - solar radiation and ozone - temperature and there is a negative correlation between ozone and windspeed.
+
+```{r}
+#creates plot with the monthly windspeed and ozone average
+airquality_monthly_average |>
+  ggplot(aes(x = Month, y = Wind)) +
+  geom_line() +
+  geom_point(aes(color = Ozone), size = 5) +
+  labs(title = "How ozone concentration changes with windspeed",
+       x = "Month",
+       y = "Windspeed (mph)",
+       color = "Ozone concentration (ppb)") +
+  theme_classic() +
+  scale_color_viridis_c() +
+  theme(legend.position = c(0.2, 0.3))
+
+```
+This graphic shows the change of Ozone during the summer of 1973 in New York. Additionaly it showas that when the windspeed is low, the concentration of ozone is high. 
+
+
+## Interpretation of the results
+The diffrent 1-3 figures above show that a higher windspeed reduce the ozone concentration. Firstly I thought that the windspeed has no connection with the ozone concentration. I was a little surprized after seeing those results. With analyzing the second figure i realized that there is not just a weak connections, the two variables have a strong correlation. I am not sure but it could be that with an higher windspeed the air travels faster and it brings new airmass with a lesser ozone concentration to the measurement station. 
+
+

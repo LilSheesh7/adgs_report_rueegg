@@ -1,0 +1,351 @@
+---
+title: "re_lm02"
+author: "Simon Rüegg"
+date: "2025-05-04"
+output: html_document
+---
+
+# Report exercise
+
+```{r}
+#Loading the libaries
+library(dplyr)
+library(ggplot2)
+library(readr)
+library(tidyr)
+library(caret)
+library(recipes)
+```
+
+## 1: Characteristics of the two diffrent data sites Davos and Laegern
+
+```{r}
+# Loading the data
+flux_davos <- read.csv("../data/FLX_CH-Dav_FLUXNET2015_FULLSET_DD_1997-2014_1-3.csv") #Data from Davos
+flux_laegern <- read.csv("../data/FLX_CH-Lae_FLUXNET2015_FULLSET_DD_2004-2014_1-4.csv") #Data from Laegern
+```
+
+Information of for the diffrent sites can be found in a file, which tells the characteristics for each site.
+
+```{r}
+# Loading the file with the characteristics for the diffrent sites
+siteinfo_flux <- load("../data/siteinfo_fluxnet2015(2).rda") #siteinfo_fluxnet2015 get loaded in the environment
+siteinfo_fluxnet2015 |>
+  filter(sitename %in% c("CH-Dav", "CH-Lae")) #just getting the characteristic for the site of Davos and Laegern.
+```
+
+From this file above we get the different characteristics from Dabos and Leagern. Both sides have an similiar latitude. The site of Laegern is a bit more north. There is a big diffrens with the elavation. The site of Davos is nearly 1000 Meters higher the the site of Laegern. Davos has an elavation of 1639 meters above sealevel, Lagern on of 689 Meter above sealevel. There is also a diffrence in the igbp_land_use und the plant_functional_type. While Davos is mostly an evergreen needleleaf forest, Laegern is a mixed forest with mostly decidous broadleaf trees.
+
+## 2: Training the KNN-models
+
+Wrangling Data
+
+```{r}
+# Splitting Data for Davos
+flux_davos <- flux_davos |>  
+  
+  # select only the variables we are interested in
+  dplyr::select(TIMESTAMP,
+                GPP_NT_VUT_REF,    # the target
+                ends_with("_QC"),  # quality control info
+                ends_with("_F"),   # includes all all meteorological covariates
+                -contains("JSB")   # weird useless variable
+                ) |>
+
+  # convert to a nice date object
+  dplyr::mutate(TIMESTAMP = lubridate::ymd(TIMESTAMP)) |>
+
+  # set all -9999 to NA
+  dplyr::mutate(across(where(is.numeric), ~na_if(., -9999))) |> 
+
+  
+  # retain only data based on >=80% good-quality measurements
+  # overwrite bad data with NA (not dropping rows)
+  dplyr::mutate(GPP_NT_VUT_REF = ifelse(NEE_VUT_REF_QC < 0.8, NA, GPP_NT_VUT_REF),
+                TA_F           = ifelse(TA_F_QC        < 0.8, NA, TA_F),
+                SW_IN_F        = ifelse(SW_IN_F_QC     < 0.8, NA, SW_IN_F),
+                LW_IN_F        = ifelse(LW_IN_F_QC     < 0.8, NA, LW_IN_F),
+                VPD_F          = ifelse(VPD_F_QC       < 0.8, NA, VPD_F),
+                PA_F           = ifelse(PA_F_QC        < 0.8, NA, PA_F),
+                P_F            = ifelse(P_F_QC         < 0.8, NA, P_F),
+                WS_F           = ifelse(WS_F_QC        < 0.8, NA, WS_F)) |> 
+
+  # drop QC variables (no longer needed)
+  dplyr::select(-ends_with("_QC"))
+
+
+
+# Splitting Data for Laegern
+flux_laegern <- flux_laegern|>  
+  
+  # select only the variables we are interested in
+  dplyr::select(TIMESTAMP,
+                GPP_NT_VUT_REF,    # the target
+                ends_with("_QC"),  # quality control info
+                ends_with("_F"),   # includes all all meteorological covariates
+                -contains("JSB")   # weird useless variable
+                ) |>
+
+  # convert to a nice date object
+  dplyr::mutate(TIMESTAMP = lubridate::ymd(TIMESTAMP)) |>
+
+  # set all -9999 to NA
+  dplyr::mutate(across(where(is.numeric), ~na_if(., -9999))) |> 
+
+  
+  # retain only data based on >=80% good-quality measurements
+  # overwrite bad data with NA (not dropping rows)
+  dplyr::mutate(GPP_NT_VUT_REF = ifelse(NEE_VUT_REF_QC < 0.8, NA, GPP_NT_VUT_REF),
+                TA_F           = ifelse(TA_F_QC        < 0.8, NA, TA_F),
+                SW_IN_F        = ifelse(SW_IN_F_QC     < 0.8, NA, SW_IN_F),
+                LW_IN_F        = ifelse(LW_IN_F_QC     < 0.8, NA, LW_IN_F),
+                VPD_F          = ifelse(VPD_F_QC       < 0.8, NA, VPD_F),
+                PA_F           = ifelse(PA_F_QC        < 0.8, NA, PA_F),
+                P_F            = ifelse(P_F_QC         < 0.8, NA, P_F),
+                WS_F           = ifelse(WS_F_QC        < 0.8, NA, WS_F)) |> 
+
+  # drop QC variables (no longer needed)
+  dplyr::select(-ends_with("_QC"))
+
+```
+
+Checking data of completeness
+
+```{r}
+# Checking for Davos
+visdat::vis_miss(
+  flux_davos,
+  cluster = FALSE, 
+  warn_large_data = FALSE
+  ) # alot of missing values in of the variable LW_IN_F
+
+# Checking for Laegern
+visdat::vis_miss(
+  flux_laegern,
+  cluster = FALSE, 
+  warn_large_data = FALSE
+  ) # For laegern there are ni values for P_F. Not using these variabe for the modelling and comparing
+```
+
+Wrangling Data
+
+```{r}
+# Eliminating the variables LW_IN_F and P_F for Davos
+flux_davos <- flux_davos |>
+  dplyr::select(-LW_IN_F) |>
+  dplyr::select(-P_F)
+
+# Eliminating the variables LW_IN_F and P_F for Laegern
+flux_laegern <- flux_laegern |>
+  dplyr::select(-LW_IN_F) |>
+  dplyr::select(-P_F)
+
+```
+
+Combine Davos and Lagern
+
+```{r}
+flux_davos_laegern <- bind_rows(flux_davos, flux_laegern)
+```
+
+## 2: Splitting data and Training KNN models
+
+Splitting the Data into training set and test set
+
+```{r}
+# Data splitting of Davos
+set.seed(123)  # for reproducibility
+split_davos <- rsample::initial_split(flux_davos, prop = 0.8, strata = "VPD_F")
+fluxes_davos_train <- rsample::training(split_davos)
+fluxes_davos_test <- rsample::testing(split_davos)
+
+# Data splitting of Laegern
+set.seed(123)  # for reproducibility
+split_laegern <- rsample::initial_split(flux_laegern, prop = 0.8, strata = "VPD_F")
+fluxes_laegern_train <- rsample::training(split_laegern)
+fluxes_laegern_test <- rsample::testing(split_laegern)
+
+# Data splitting of the combinaton Davos & Laegern
+set.seed(123)  # for reproducibility
+split_davos_laegern <- rsample::initial_split(flux_davos_laegern, prop = 0.8, strata = "VPD_F")
+fluxes_davos_laegern_train <- rsample::training(split_davos_laegern)
+fluxes_davos_laegern_test <- rsample::testing(split_davos_laegern)
+```
+
+Training KNN model for site Davos
+
+```{r}
+pp_davos <- recipes::recipe(GPP_NT_VUT_REF ~ SW_IN_F + VPD_F + TA_F, 
+                      data = fluxes_davos_train) |> 
+  recipes::step_center(recipes::all_numeric(), -recipes::all_outcomes()) |>
+  recipes::step_scale(recipes::all_numeric(), -recipes::all_outcomes())
+
+set.seed(1982)
+mod_cv_davos <- caret::train(pp_davos, 
+                       data = fluxes_davos_train |> drop_na(), 
+                       method = "knn",
+                       trControl = caret::trainControl(method = "cv", number = 10),
+                       tuneGrid = data.frame(k = c(2, 5, 10, 15, 20, 25, 30, 35, 40, 60, 100)),
+                       metric = "MAE")
+print(mod_cv_davos)
+```
+
+Training KNN model for site of Laegern
+
+```{r}
+pp_laegern <- recipes::recipe(GPP_NT_VUT_REF ~ SW_IN_F + VPD_F + TA_F, 
+                      data = fluxes_laegern_train) |> 
+  recipes::step_center(recipes::all_numeric(), -recipes::all_outcomes()) |>
+  recipes::step_scale(recipes::all_numeric(), -recipes::all_outcomes())
+
+set.seed(1982)
+mod_cv_laegern <- caret::train(pp_laegern, 
+                       data = fluxes_laegern_train |> drop_na(), 
+                       method = "knn",
+                       trControl = caret::trainControl(method = "cv", number = 10),
+                       tuneGrid = data.frame(k = c(2, 5, 10, 15, 20, 25, 30, 35, 40, 60, 100)),
+                       metric = "MAE")
+print(mod_cv_laegern)
+```
+
+Training KNN model for the combination of Davos and Laegern
+
+```{r}
+pp_davos_laegern <- recipes::recipe(GPP_NT_VUT_REF ~ SW_IN_F + VPD_F + TA_F, 
+                      data = fluxes_davos_laegern_train) |> 
+  recipes::step_center(recipes::all_numeric(), -recipes::all_outcomes()) |>
+  recipes::step_scale(recipes::all_numeric(), -recipes::all_outcomes())
+
+set.seed(1982)
+mod_cv_davos_laegern <- caret::train(pp_davos_laegern, 
+                       data = fluxes_davos_laegern_train |> drop_na(), 
+                       method = "knn",
+                       trControl = caret::trainControl(method = "cv", number = 10),
+                       tuneGrid = data.frame(k = c(2, 5, 10, 15, 20, 25, 30, 35, 40, 60, 100)),
+                       metric = "MAE")
+print(mod_cv_davos_laegern)
+```
+
+Model trained with data from Davos
+
+```{r}
+# fit KNN model for Davos
+k_davos <- mod_cv_davos$finalModel$k #optimal k for davos
+
+mod_knn_davos <- caret::train(
+  pp_davos, 
+  data = fluxes_davos_train |> drop_na(), 
+  method = "knn",
+  trControl = caret::trainControl(method = "none"),
+  tuneGrid = data.frame(k = k_davos),
+  metric = "RMSE"
+)
+
+source("../R/eval_model_rmse_rsq.R")
+
+# Evaluate model for Davos versus Davos, Laegern and the combination of Davos and Laegern
+davos_davos <- eval_model_rmse_rsq(mod = mod_knn_davos, df_train = fluxes_davos_train, df_test = fluxes_davos_test) #Davos vs. Davos
+davos_laegern <- eval_model_rmse_rsq(mod = mod_knn_davos, df_train = fluxes_davos_train, df_test = fluxes_laegern_test) #Davos vs. Laegern
+davos_davoslaegern <- eval_model_rmse_rsq(mod = mod_knn_davos, df_train = fluxes_davos_laegern_train, df_test = fluxes_davos_laegern_test) #Davos vs. Davos-Laegern
+```
+
+Model trained with data from Laegern
+
+```{r}
+# fit KNN model for Davos
+k_laegern <- mod_cv_laegern$finalModel$k #optimal k for davos
+
+mod_knn_laegern <- caret::train(
+  pp_laegern, 
+  data = fluxes_laegern_train |> drop_na(), 
+  method = "knn",
+  trControl = caret::trainControl(method = "none"),
+  tuneGrid = data.frame(k = k_laegern),
+  metric = "RMSE"
+)
+
+source("../R/eval_model_rmse_rsq.R")
+
+# Evaluate model for Davos versus Davos, Laegern and the combination of Davos and Laegern
+laegern_laegern <- eval_model_rmse_rsq(mod = mod_knn_laegern, df_train = fluxes_laegern_train, df_test = fluxes_laegern_test) #Laegern vs. Laegern
+laegern_davos <- eval_model_rmse_rsq(mod = mod_knn_laegern, df_train = fluxes_laegern_train, df_test = fluxes_davos_test) #Laegern vs. Davos
+laegern_davoslaegern <- eval_model_rmse_rsq(mod = mod_knn_laegern, df_train = fluxes_laegern_train, df_test = fluxes_davos_laegern_test) # Laegern vs. Davos-Laegern
+```
+
+Model trained with data from the combination of Davos-Laegern
+
+```{r}
+# fit KNN model for Davos
+k_davos_laegern <- mod_cv_davos_laegern$finalModel$k #optimal k for davos
+
+mod_knn_davos_laegern <- caret::train(
+  pp_davos_laegern, 
+  data = fluxes_davos_laegern_train |> drop_na(), 
+  method = "knn",
+  trControl = caret::trainControl(method = "none"),
+  tuneGrid = data.frame(k = k_laegern),
+  metric = "RMSE"
+)
+
+source("../R/eval_model_rmse_rsq.R")
+
+# Evaluate model for Davos versus Davos, Laegern and the combination of Davos and Laegern
+davoslaegern_davoslaegern <- eval_model_rmse_rsq(mod = mod_knn_davos_laegern, df_train = fluxes_davos_laegern_train, df_test = fluxes_davos_laegern_test) #Laegern vs. Laegern
+davoslaegern_davos <- eval_model_rmse_rsq(mod = mod_knn_davos_laegern, df_train = fluxes_davos_laegern_train, df_test = fluxes_davos_test) #Laegern vs. Davos
+davoslaegern_laegern <- eval_model_rmse_rsq(mod = mod_knn_davos_laegern, df_train = fluxes_davos_laegern_train, df_test = fluxes_laegern_test) # Laegern vs. Davos-Laegern
+```
+
+## 3: Creating tables
+
+Table for Davos
+
+```{r}
+table_davos <- data.frame(
+  row.names = c("Evaluation against Laegern test set", "Evaluation agains Davos test set", "Evaluation against Laegern & Davos test set"),
+  "R^2" = c(davos_laegern[2], davos_davos[2], davos_davoslaegern[2]),
+  "RMSE" = c(davos_laegern[1], davos_davos[1], davos_davoslaegern[1])
+)
+
+knitr::kable(table_davos, format = "html", caption = "Model trained on data from Davos") |>
+  kableExtra::kable_styling(
+    bootstrap_options = c("striped", "hover", "condensed", "responsive"),
+    full_width = FALSE,
+    position = "center"
+  )
+```
+
+Table for Laegern
+
+```{r}
+table_laegern <- data.frame(
+  row.names = c("Evaluation against Laegern test set", "Evaluation agains Davos test set", "Evaluation against Laegern & Davos test set"),
+  "R^2" = c(laegern_laegern[2], laegern_davos[2], laegern_davoslaegern[2]),
+  "RMSE" = c(laegern_laegern[1], laegern_davos[1], laegern_davoslaegern[1])
+)
+
+knitr::kable(table_laegern, format = "html", caption = "Model trained on data from Laegern") |>
+  kableExtra::kable_styling(
+    bootstrap_options = c("striped", "hover", "condensed", "responsive"),
+    full_width = FALSE,
+    position = "center"
+  )
+```
+
+Table for Davos & Laegern
+
+```{r}
+table_davoslaegern <- data.frame(
+  row.names = c("Evaluation against Laegern test set", "Evaluation agains Davos test set", "Evaluation against Laegern & Davos test set"),
+  "R^2" = c(davoslaegern_laegern[2], davoslaegern_davos[2], davoslaegern_davoslaegern[2]),
+  "RMSE" = c(davoslaegern_laegern[1], davoslaegern_davos[1], davoslaegern_davoslaegern[1])
+)
+
+knitr::kable(table_davoslaegern, format = "html", caption = "Model trained on data from Laegern & Davos") |>
+  kableExtra::kable_styling(
+    bootstrap_options = c("striped", "hover", "condensed", "responsive"),
+    full_width = FALSE,
+    position = "center"
+  )
+```
+
+## 4: Comparing of the different results

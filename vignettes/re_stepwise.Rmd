@@ -1,0 +1,146 @@
+---
+title: "re_stepwise"
+author: "Simon Rüegg"
+date: "2025-04-14"
+output: html_document
+---
+
+# Report exercise
+
+## Loading packages
+```{r}
+library(ggplot2)
+library(dplyr)
+```
+
+## Read in half-hourly fluxes data
+
+```{r}
+half_hourly_fluxes <- read.csv("../data/df_for_stepwise_regression.csv")
+```
+
+## Evaluating all bivariate models with a single predictor
+
+```{r}
+# define GPP and the predictors
+gpp <- half_hourly_fluxes$GPP_NT_VUT_REF
+predictors <- half_hourly_fluxes %>% select(-siteid, -TIMESTAMP) |>
+  tidyr::drop_na()#delete location, time stamp and GPP from the half hourly fluxes dataframe an drop na values
+```
+
+```{r}
+# do steps 1-3 to get the predictor with the highest R^2
+name_predictors <- names(predictors)
+r_squared_max <- 0
+index_pred_max <- c()
+
+#find column in predictors with highest R^2
+i_r_squared_max <- 0
+for (i in 1:length(predictors)) {
+  if (i != 14) {
+    string_pred <- paste("GPP_NT_VUT_REF ~ ", paste(name_predictors[i])) #string with to calculate lm
+    string_pred <- formula(string_pred) # delete the "" in the string
+    linmod <- lm(string_pred, data = predictors)
+    r_squared <- summary(linmod)$r.squared
+    
+    # memorise heighest R^2
+    if (r_squared > r_squared_max) {
+      r_squared_max <- r_squared #safe value of the heighest R^2
+      index_pred_max <- i #safes the index of the column where the heighst index is (in predictors)
+    }
+    
+    # Making plots for the different predictors
+    print(predictors |>
+            ggplot(aes(x = predictors$GPP_NT_VUT_REF, y = predictors[, i])) +
+                   geom_point() +
+                     geom_smooth(formula = y ~ x +0, method = lm, color = "red") +
+                     labs(x = expression(paste("GPP (", mu,"mol CO"[2], " m"^-2, "s"^-1, ")")), y = name_predictors[i]) +
+                     theme_classic())
+
+  }
+}
+```
+As we did  search for the heighst R^2 we found it. The heighst R^2 is
+```{r}
+name_r_squared <- names(predictors[index_pred_max])
+```
+"name_r_squared" safes the name of the column with the heighst R^2. In this case it is "PPFD_IN". The value of R^2 between the GPP and the PPFD_IN is safed in "r_squared_max". This value is around 0.4527. 
+
+```{r}
+# Compute the AIC of the heighst R^2
+
+# calculating the sse and the n fpr the AIC
+sse <- sum((predictors[, index_pred_max] - mean(predictors[, index_pred_max]))^2)
+n <- length(predictors[, index_pred_max])
+p <- 1
+
+AIC <- n * log(sse/n) + 2 * (p + 2)
+```
+
+## Stepwise forward regression
+
+```{r}
+# form loop for the stepwise forward regression
+name_predictors <- names(predictors)
+r_squared_max <- 0
+index_pred_max <- 0
+used_pred_max <- c()
+count_predictors <- 0
+start <- 1
+
+while (start == 1) {
+  for (i in 1:length(predictors)) {
+    if (i != 14 & !(i %in% used_pred_max)){ #for-loop do not take GPP or already used predictors
+      string_pred <- paste("GPP_NT_VUT_REF ~ ", paste(name_predictors[i])) #string with to calculate lm
+      string_pred <- formula(string_pred) #delete the "" in the string
+      linmod <- lm(string_pred, data = predictors)
+      r_squared <- summary(linmod)$r.squared
+      
+      # memorise heighest R^2
+      if (r_squared > r_squared_max) {
+        r_squared_max <- r_squared #safe value of the highest R^2
+        index_pred_max <- i #safes index of the highest R^2 somehow that does not work
+      }
+    }
+  }
+  start <- 0 #stops while loop to add index of maximum R^2 to the used_pred_max vector
+  used_pred_max <- c(used_pred_max, index_pred_max) #index of the added predictor gets added in vector used_pred_max
+  r_squared_max <- 0 # sets squared max to 0 for new loop
+  
+  # calculate AIC
+  sse <- c()
+  pot_col <- c(used_pred_max, index_pred_max)
+  subset_predictors <- predictors[, pot_col]
+  
+  for (j in 1:length(names(subset_predictors))) {
+    sse[j] <- sum((subset_predictors[, j] - mean(subset_predictors[, j]))^2)
+  }
+  sse_2 <- sum(sse)
+  num_var <- length(predictors[, 1]) * length(used_pred_max)
+  
+  aic_value <- num_var * log(sse_2/num_var) + 2 * (length(used_pred_max) + 2)
+  
+  if (AIC < aic_value) {
+    start <- 0
+  }
+  else {
+    used_pred_max <- c(used_pred_max, index_pred_max)
+  }
+}
+```
+
+## Visualize the results
+
+```{r}
+r_value <- round(r_squared_max, 5)
+
+ggplot(data = predictors, aes(x = GPP_NT_VUT_REF, y = PPFD_IN, )) +
+  geom_point() +
+  geom_smooth(formula = y ~ x, method = "lm", color = "red", fullrange = T,
+    aes(x = predictors$GPP_NT_VUT_REF, y = predictors$PPFD_IN)) +
+  ggtitle(paste("GGP_NT_VUT vs. PPDF_IN", r_value)) +
+  labs(x = expression(paste("GPP (", mu,"mol CO"[2], " m"^-2, "s"^-1, ")")), y = "PPFD_IN")
+  theme_classic()
+```
+
+The visualisation i got here shows a scatterplot between the GPP and the PPFD. Sadly I was not able to complete the loop the determine which predictors have influence to the GPP. My code does not loop another predictor and just takes the best one for the first run, which is the PPFD. The code should check for the heighest R^2 after the determination of the already used variables. And then determine the aic_value of the used predictors and the new one. As soon as the new aic_value is not smaller then the previous aic_value we have all the variable which have an influence or are highly connected with the GPP. The gaol is to find a model which can make the best prediction of the GPP.

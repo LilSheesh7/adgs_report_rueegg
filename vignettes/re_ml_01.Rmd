@@ -1,0 +1,185 @@
+---
+title: "re_ml_01"
+author: "Simon Rüegg"
+date: "2025-04-28"
+output: 
+  html_document: 
+    toc: true
+---
+
+# Report excercise linear modelling
+
+
+## Comparison of the linear regression and the KNN models
+
+```{r}
+# loading the libaries
+library(dplyr)
+library(ggplot2)
+library(readr)
+library(tidyr)
+library(caret)
+library(recipes)
+```
+
+```{r}
+# read in data with daily fluxes
+daily_fluxes <- read_csv("../data/FLX_CH-Dav_FLUXNET2015_FULLSET_DD_1997-2014_1-3.csv") |>  
+  
+  # select only the variables we are interested in
+  dplyr::select(TIMESTAMP,
+                GPP_NT_VUT_REF,    # the target
+                ends_with("_QC"),  # quality control info
+                ends_with("_F"),   # includes all all meteorological covariates
+                -contains("JSB")   # weird useless variable
+                ) |>
+
+  # convert to a nice date object
+  dplyr::mutate(TIMESTAMP = lubridate::ymd(TIMESTAMP)) |>
+
+  # set all -9999 to NA
+  mutate(across(where(is.numeric), ~na_if(., -9999))) |> 
+  
+  # retain only data based on >=80% good-quality measurements
+  # overwrite bad data with NA (not dropping rows)
+  dplyr::mutate(GPP_NT_VUT_REF = ifelse(NEE_VUT_REF_QC < 0.8, NA, GPP_NT_VUT_REF),
+                TA_F           = ifelse(TA_F_QC        < 0.8, NA, TA_F),
+                SW_IN_F        = ifelse(SW_IN_F_QC     < 0.8, NA, SW_IN_F),
+                LW_IN_F        = ifelse(LW_IN_F_QC     < 0.8, NA, LW_IN_F),
+                VPD_F          = ifelse(VPD_F_QC       < 0.8, NA, VPD_F),
+                PA_F           = ifelse(PA_F_QC        < 0.8, NA, PA_F),
+                P_F            = ifelse(P_F_QC         < 0.8, NA, P_F),
+                WS_F           = ifelse(WS_F_QC        < 0.8, NA, WS_F)) |> 
+
+  # drop QC variables (no longer needed)
+  dplyr::select(-ends_with("_QC"))
+```
+
+```{r}
+# Data splitting
+set.seed(1982)  # for reproducibility
+split <- rsample::initial_split(daily_fluxes, prop = 0.7, strata = "VPD_F")
+daily_fluxes_train <- rsample::training(split)
+daily_fluxes_test <- rsample::testing(split)
+
+# Model and pre-processing formulation, use all variables but LW_IN_F
+pp <- recipes::recipe(GPP_NT_VUT_REF ~ SW_IN_F + VPD_F + TA_F, 
+                      data = daily_fluxes_train |> drop_na()) |> 
+  recipes::step_BoxCox(recipes::all_predictors()) |> 
+  recipes::step_center(recipes::all_numeric(), -recipes::all_outcomes()) |>
+  recipes::step_scale(recipes::all_numeric(), -recipes::all_outcomes())
+
+# Fit linear regression model
+mod_lm <- caret::train(
+  pp, 
+  data = daily_fluxes_train |> drop_na(), 
+  method = "lm",
+  trControl = caret::trainControl(method = "none"),
+  metric = "RMSE"
+)
+
+# Fit KNN model
+mod_knn <- caret::train(
+  pp, 
+  data = daily_fluxes_train |> drop_na(), 
+  method = "knn",
+  trControl = caret::trainControl(method = "none"),
+  tuneGrid = data.frame(k = 8),
+  metric = "RMSE"
+)
+```
+
+```{r}
+# Loading in the eval_model function
+source("../R/eval_model.R")
+```
+
+```{r}
+# Training and test set of the linear regression model and the KNN
+# linear regression model
+eval_model(mod = mod_lm, df_train = daily_fluxes_train, df_test = daily_fluxes_test)
+# KNN
+eval_model(mod = mod_knn, df_train = daily_fluxes_train, df_test = daily_fluxes_test)
+```
+### Interpretation
+The difference between the evaluation on the training set and the test set is larger for the KNN model, because it just use the k=8 nearest neighbors. The linear regression use all values. 
+The evaluation of the test set for the KNN model is better because it already calculate the average as a step for calculate the regression. 
+The linear regression model can be easily influenced with a bias. The KNN model gives an opportunity to to minimalize this bias. If the k in the KNN model is infinity high the bias of an model can completely disappear. But an higher k gives less details results.
+
+### Visulaisation
+```{r}
+# generating time-line plot with the observed data and the data of the linear regression model and the KNN model
+# new dataframe with all daily-fluxes data, which do not coantain any na-value, so the mod_knn and mod_lm data can be added
+daily_fluxes_plotting <- drop_na(daily_fluxes)
+
+# adding knn-model to daily fluxes
+daily_fluxes_plotting$knn <- predict(mod_knn, newdata = daily_fluxes_plotting)
+
+# adding linear regression model to daily_fluxes_plotting
+daily_fluxes_plotting$lm <- predict(mod_lm, newdata = daily_fluxes_plotting)
+
+# plotting the observed data with the data from the knn-model and the linear regression model in the same plot
+daily_fluxes_plotting |>
+  ggplot(aes(x = TIMESTAMP, y = GPP_NT_VUT_REF)) +
+  geom_point(color = "black", alpha = 0.5) +
+  geom_point(y = daily_fluxes_plotting$knn, color = "pink", alpha = 0.5) +
+  geom_point(y = daily_fluxes_plotting$lm, color = "lightblue", alpha = 0.5) +
+  labs(x = "Time",
+       y = expression(paste("GPP (", mu,"mol CO"[2], " m"^-2, "s"^-1, ")"))) +
+  scale_x_date(date_breaks = "1 year", date_labels = "%Y")
+  theme_classic()
+```
+This visualization shows that both predicted models (knn and linear regression) do not predict high values for GPP. This can be seen that in each summer the observed GPP value is higher then the GPP values generated from the models. 
+
+
+## The role of k
+
+### 1
+For k=1 the model would be highly overfitted and the bias would be really high. For a k=n the model would be underfitted. There is no or just a very low bias of extreme values, but the model is highly underfitted. In both cases i would expect, that the test set does not corresponds well with the model. The MAE schould be higher when the k is small. This is because extreme values in the test set have an big influence on the modeling data and if the test set, do not have the same extreme values the MAE is very high. 
+
+### 2
+
+```{r, warning=FALSE}
+# spliting dataset into training and testing data
+set.seed(2526)
+split <- rsample::initial_split(daily_fluxes, prop = 0.7, strata = "VPD_F")
+daily_fluxes_train_2 <- rsample::training(split)
+daily_fluxes_test_2 <- rsample::testing(split)
+
+# Model and pre-processing formulation, use all variables but LW_IN_F
+pp_2 <- recipes::recipe(GPP_NT_VUT_REF ~ SW_IN_F + VPD_F + TA_F, 
+                      data = daily_fluxes_train_2 |> drop_na()) |> 
+  recipes::step_BoxCox(recipes::all_predictors()) |> 
+  recipes::step_center(recipes::all_numeric(), -recipes::all_outcomes()) |>
+  recipes::step_scale(recipes::all_numeric(), -recipes::all_outcomes())
+
+
+# testing different values of k
+k_values <- 1:250 # this step takes very long because there are some "Warnungen: Non positiv values in selected variable" and "No Box-Cox transformation could be estimated for TA_F
+
+# Loading function which takes k and calculates mae-
+source("../R/k_to_mae.R")
+
+mae_values <- sapply(k_values, fit_and_eval_knn, df = daily_fluxes) #determining MAE-value for each k (1 to lenngt of rows und daily fluxes)
+
+```
+```{r}
+# visualization
+# create dataframe with k and mae-value
+df_k_mae <- data_frame(k = k_values, MAE = mae_values)
+
+# plot the dataframe in a scaterplot
+df_k_mae |> 
+  ggplot(aes(x = k_values, y = mae_values)) + # shows that the lowest mae_value is around 10 to 15
+  geom_point() +
+  scale_x_continuous(breaks = seq(0, 250, 25)) +
+  labs(title = "Number of k's plotted against the MAE-value", x = "k", y = "MAE")
+```
+
+
+The optimal k is there where the MAE-value is minimal.
+```{r}
+optimal_k <- which.min(mae_values)
+```
+The plot above shows the optimal k. The optimal k is extracted with "optimal_k" and its 12.
+
