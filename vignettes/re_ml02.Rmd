@@ -302,7 +302,7 @@ Table for Davos
 ```{r}
 table_davos <- data.frame(
   row.names = c("Evaluation against Laegern test set", "Evaluation agains Davos test set", "Evaluation against Laegern & Davos test set"),
-  "R^2" = c(davos_laegern[2], davos_davos[2], davos_davoslaegern[2]),
+  "RSQ" = c(davos_laegern[2], davos_davos[2], davos_davoslaegern[2]),
   "RMSE" = c(davos_laegern[1], davos_davos[1], davos_davoslaegern[1])
 )
 
@@ -315,11 +315,10 @@ knitr::kable(table_davos, format = "html", caption = "Model trained on data from
 ```
 
 Table for Laegern
-
 ```{r}
 table_laegern <- data.frame(
   row.names = c("Evaluation against Laegern test set", "Evaluation agains Davos test set", "Evaluation against Laegern & Davos test set"),
-  "R^2" = c(laegern_laegern[2], laegern_davos[2], laegern_davoslaegern[2]),
+  "RSQ" = c(laegern_laegern[2], laegern_davos[2], laegern_davoslaegern[2]),
   "RMSE" = c(laegern_laegern[1], laegern_davos[1], laegern_davoslaegern[1])
 )
 
@@ -336,7 +335,7 @@ Table for Davos & Laegern
 ```{r}
 table_davoslaegern <- data.frame(
   row.names = c("Evaluation against Laegern test set", "Evaluation agains Davos test set", "Evaluation against Laegern & Davos test set"),
-  "R^2" = c(davoslaegern_laegern[2], davoslaegern_davos[2], davoslaegern_davoslaegern[2]),
+  "RSQ" = c(davoslaegern_laegern[2], davoslaegern_davos[2], davoslaegern_davoslaegern[2]),
   "RMSE" = c(davoslaegern_laegern[1], davoslaegern_davos[1], davoslaegern_davoslaegern[1])
 )
 
@@ -349,3 +348,4 @@ knitr::kable(table_davoslaegern, format = "html", caption = "Model trained on da
 ```
 
 ## 4: Comparing of the different results
+
