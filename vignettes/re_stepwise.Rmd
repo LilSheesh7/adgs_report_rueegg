@@ -2,13 +2,15 @@
 title: "re_stepwise"
 author: "Simon Rüegg"
 date: "2025-04-14"
-output: html_document
+output: 
+  html_document: 
+    toc: true
 ---
 
 # Report exercise
 
 ## Loading packages
-```{r}
+```{r, warning=FALSE, message=FALSE}
 library(ggplot2)
 library(dplyr)
 ```
@@ -28,7 +30,7 @@ predictors <- half_hourly_fluxes %>% select(-siteid, -TIMESTAMP) |>
   tidyr::drop_na()#delete location, time stamp and GPP from the half hourly fluxes dataframe an drop na values
 ```
 
-```{r}
+```{r, warning=FALSE, message=FALSE}
 # do steps 1-3 to get the predictor with the highest R^2
 name_predictors <- names(predictors)
 r_squared_max <- 0
@@ -61,7 +63,7 @@ for (i in 1:length(predictors)) {
 }
 ```
 As we did  search for the heighst R^2 we found it. The heighst R^2 is
-```{r}
+```{r, message=FALSE}
 name_r_squared <- names(predictors[index_pred_max])
 ```
 "name_r_squared" safes the name of the column with the heighst R^2. In this case it is "PPFD_IN". The value of R^2 between the GPP and the PPFD_IN is safed in "r_squared_max". This value is around 0.4527. 
@@ -131,7 +133,7 @@ while (start == 1) {
 
 ## Visualize the results
 
-```{r}
+```{r, message=FALSE, warning=FALSE}
 r_value <- round(r_squared_max, 5)
 
 ggplot(data = predictors, aes(x = GPP_NT_VUT_REF, y = PPFD_IN, )) +
@@ -139,7 +141,7 @@ ggplot(data = predictors, aes(x = GPP_NT_VUT_REF, y = PPFD_IN, )) +
   geom_smooth(formula = y ~ x, method = "lm", color = "red", fullrange = T,
     aes(x = predictors$GPP_NT_VUT_REF, y = predictors$PPFD_IN)) +
   ggtitle(paste("GGP_NT_VUT vs. PPDF_IN", r_value)) +
-  labs(x = expression(paste("GPP (", mu,"mol CO"[2], " m"^-2, "s"^-1, ")")), y = "PPFD_IN")
+  labs(x = expression(paste("GPP (", mu,"mol CO"[2], " m"^-2, "s"^-1, ")")), y = "PPFD_IN") +
   theme_classic()
 ```
 

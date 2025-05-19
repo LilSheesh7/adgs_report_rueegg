@@ -2,14 +2,16 @@
 title: "re_airquality"
 author: "Simon Rüegg"
 date: "2025-03-10"
-output: html_document
+output: 
+  html_document: 
+    toc: true
 ---
 
 # Report Excersie
 
 ## Loading Libraries
 
-```{r}
+```{r, message=FALSE, warning=FALSE}
 library(ggplot2)
 library(readr)
 library(lubridate)
@@ -48,7 +50,7 @@ Which factors (solar radiation, windspeed, temperature) have an impact on the oz
 
 ## creating figures the answer the question
 
-```{r}
+```{r, warning=FALSE, message=FALSE}
 # create timeline with with equal values of each datatype
 #maximum values of each datatype
 airquality_max <- airquality_monthly_average |>
@@ -88,7 +90,7 @@ airquality_monthly_equal_average |>
 
 This graphic shows which variables change similar to the concentration change of ozone. Here we see that when the concentration of ozone is high, the temperature and the solar radiation is also high. We also see that when the windspeed is lower the concentration of ozone is high.
 
-```{r}
+```{r, message=FALSE, warning=FALSE}
 #create scaterplots  to see correlations between ozone and the other variables
 #Ozone and Solar Radiation
 ozone_solar_r <- airquality |>
@@ -97,7 +99,7 @@ ozone_solar_r <- airquality |>
   geom_smooth(method = "lm", col = "red") +
   labs(title = "Linear regression between ozone and solar radiation",
        x = "Ozone concentration (ppb)",
-       y = "Solar radiation (Langleys)")
+       y = "Solar radiation (Langleys)") +
   theme_classic()
 
 #Ozone and Windspeed
@@ -107,7 +109,7 @@ ozone_wind <- airquality |>
   geom_smooth(method = "lm", col = "red") +
   labs(title = "Linear regressio between ozone and Windspeed",
        x = "Ozone concentration (ppb)",
-       y = "Windspeed (mph)")
+       y = "Windspeed (mph)") +
   theme_classic()
 
 #Ozone and Temperature
@@ -117,15 +119,16 @@ ozone_temp <- airquality |>
   geom_smooth(method = "lm", col = "red") +
   labs(title = "Linear regression between ozone and temperature",
        x = "Ozone concentration (ppb)",
-       y = "Temperature (°F)")
+       y = "Temperature (°F)") +
   theme_classic()
 
 #combine the diffrent plots
 cowplot::plot_grid(ozone_solar_r, ozone_wind, ozone_temp)
 ```
+
 This graphic shows the linear regression and the correlations between ozone and the different variables solar radiation, windspeed and temperature. As we can see there is a positive correlation between ozone - solar radiation and ozone - temperature and there is a negative correlation between ozone and windspeed.
 
-```{r}
+```{r, message=FALSE}
 #creates plot with the monthly windspeed and ozone average
 airquality_monthly_average |>
   ggplot(aes(x = Month, y = Wind)) +
@@ -138,7 +141,6 @@ airquality_monthly_average |>
   theme_classic() +
   scale_color_viridis_c() +
   theme(legend.position = c(0.2, 0.3))
-
 ```
 This graphic shows the change of Ozone during the summer of 1973 in New York. Additionaly it showas that when the windspeed is low, the concentration of ozone is high. 
 

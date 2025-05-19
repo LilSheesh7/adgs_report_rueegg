@@ -12,7 +12,7 @@ output:
 
 ## Comparison of the linear regression and the KNN models
 
-```{r}
+```{r, warning=FALSE, message=FALSE}
 # loading the libaries
 library(dplyr)
 library(ggplot2)
@@ -22,7 +22,7 @@ library(caret)
 library(recipes)
 ```
 
-```{r}
+```{r, warning=FALSE, message=FALSE}
 # read in data with daily fluxes
 daily_fluxes <- read_csv("../data/FLX_CH-Dav_FLUXNET2015_FULLSET_DD_1997-2014_1-3.csv") |>  
   
@@ -55,7 +55,7 @@ daily_fluxes <- read_csv("../data/FLX_CH-Dav_FLUXNET2015_FULLSET_DD_1997-2014_1-
   dplyr::select(-ends_with("_QC"))
 ```
 
-```{r}
+```{r, warning=FALSE, message=FALSE}
 # Data splitting
 set.seed(1982)  # for reproducibility
 split <- rsample::initial_split(daily_fluxes, prop = 0.7, strata = "VPD_F")
@@ -89,12 +89,12 @@ mod_knn <- caret::train(
 )
 ```
 
-```{r}
+```{r, warning=FALSE, message=FALSE}
 # Loading in the eval_model function
 source("../R/eval_model.R")
 ```
 
-```{r}
+```{r, warning=FALSE, message=FALSE}
 # Training and test set of the linear regression model and the KNN
 # linear regression model
 eval_model(mod = mod_lm, df_train = daily_fluxes_train, df_test = daily_fluxes_test)
@@ -107,7 +107,7 @@ The evaluation of the test set for the KNN model is better because it already ca
 The linear regression model can be easily influenced with a bias. The KNN model gives an opportunity to to minimalize this bias. If the k in the KNN model is infinity high the bias of an model can completely disappear. But an higher k gives less details results.
 
 ### Visulaisation
-```{r}
+```{r, warning=FALSE, message=FALSE}
 # generating time-line plot with the observed data and the data of the linear regression model and the KNN model
 # new dataframe with all daily-fluxes data, which do not coantain any na-value, so the mod_knn and mod_lm data can be added
 daily_fluxes_plotting <- drop_na(daily_fluxes)
@@ -135,11 +135,12 @@ This visualization shows that both predicted models (knn and linear regression) 
 ## The role of k
 
 ### 1
+
 For k=1 the model would be highly overfitted and the bias would be really high. For a k=n the model would be underfitted. There is no or just a very low bias of extreme values, but the model is highly underfitted. In both cases i would expect, that the test set does not corresponds well with the model. The MAE schould be higher when the k is small. This is because extreme values in the test set have an big influence on the modeling data and if the test set, do not have the same extreme values the MAE is very high. 
 
 ### 2
 
-```{r, warning=FALSE}
+```{r, warning=FALSE, message=FALSE}
 # spliting dataset into training and testing data
 set.seed(2526)
 split <- rsample::initial_split(daily_fluxes, prop = 0.7, strata = "VPD_F")
@@ -163,7 +164,7 @@ source("../R/k_to_mae.R")
 mae_values <- sapply(k_values, fit_and_eval_knn, df = daily_fluxes) #determining MAE-value for each k (1 to lenngt of rows und daily fluxes)
 
 ```
-```{r}
+```{r, warning=FALSE, message=FALSE}
 # visualization
 # create dataframe with k and mae-value
 df_k_mae <- data_frame(k = k_values, MAE = mae_values)
@@ -178,7 +179,7 @@ df_k_mae |>
 
 
 The optimal k is there where the MAE-value is minimal.
-```{r}
+```{r, warning=FALSE, message=FALSE}
 optimal_k <- which.min(mae_values)
 ```
 The plot above shows the optimal k. The optimal k is extracted with "optimal_k" and its 12.

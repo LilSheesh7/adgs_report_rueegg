@@ -2,14 +2,16 @@
 title: "re_tidy"
 author: "Simon Rüegg"
 date: "2025-03-03"
-output: html_document
+output: 
+  html_document: 
+    toc: true
 ---
 
 # Report Exercise
 
 ## Loading Packeges
 
-```{r}
+```{r, warning=FALSE, message=FALSE}
 library(dplyr)
 library(lubridate)
 library(tidyr)
@@ -30,7 +32,7 @@ Manually cleaning the Data and save as .csv file. 1. Delete empty rows 2. fill o
 
 Read in the manually cleaned csv-file.
 
-```{r}
+```{r, message=FALSE}
 soil_carbon_storage <- read_csv2("../data/1249534s1-s6.csv") #read_csv2 for semicolons
 ```
 
@@ -53,7 +55,9 @@ knitr::kable(SOC_early_mid_late) |>
   kableExtra::kable_styling()
 ```
 
-##4 1. What are the Data that you are looking at? The Data in the .xlsx-file shows different measurements of ambient CO2 and increased CO2 for different experiments. The data also repetitions of each experiments once or several times over the years. This helps to see what changed over time (years).
+## 4
+
+1. What are the Data that you are looking at? The Data in the .xlsx-file shows different measurements of ambient CO2 and increased CO2 for different experiments. The data also repetitions of each experiments once or several times over the years. This helps to see what changed over time (years).
 
 2.  What do you expect your analysis to show, what is your hypothesis? How should soil organic matter content change under elevated CO2? I expect the analysis to show how long can a soil matter content increase it's CO2 concentration under increasing CO2 concentration in the environment?
 
