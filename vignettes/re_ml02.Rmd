@@ -10,7 +10,7 @@ output:
 # Report exercise
 
 ```{r}
-#Loading the libaries
+#Loading the libraries
 library(dplyr)
 library(ggplot2)
 library(readr)
@@ -108,7 +108,6 @@ flux_laegern <- flux_laegern|>
 
   # drop QC variables (no longer needed)
   dplyr::select(-ends_with("_QC"))
-
 ```
 
 Checking data of completeness
@@ -141,7 +140,6 @@ flux_davos <- flux_davos |>
 flux_laegern <- flux_laegern |>
   dplyr::select(-LW_IN_F) |>
   dplyr::select(-P_F)
-
 ```
 
 Combine Davos and Lagern

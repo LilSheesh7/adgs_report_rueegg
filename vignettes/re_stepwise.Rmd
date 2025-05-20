@@ -62,6 +62,7 @@ for (i in 1:length(predictors)) {
   }
 }
 ```
+
 As we did  search for the heighst R^2 we found it. The heighst R^2 is
 ```{r, message=FALSE}
 name_r_squared <- names(predictors[index_pred_max])
@@ -140,9 +141,9 @@ ggplot(data = predictors, aes(x = GPP_NT_VUT_REF, y = PPFD_IN, )) +
   geom_point() +
   geom_smooth(formula = y ~ x, method = "lm", color = "red", fullrange = T,
     aes(x = predictors$GPP_NT_VUT_REF, y = predictors$PPFD_IN)) +
-  ggtitle(paste("GGP_NT_VUT vs. PPDF_IN", r_value)) +
+  ggtitle(paste("GGP vs. PPDF", r_value)) +
   labs(x = expression(paste("GPP (", mu,"mol CO"[2], " m"^-2, "s"^-1, ")")), y = "PPFD_IN") +
   theme_classic()
 ```
 
-The visualisation i got here shows a scatterplot between the GPP and the PPFD. Sadly I was not able to complete the loop the determine which predictors have influence to the GPP. My code does not loop another predictor and just takes the best one for the first run, which is the PPFD. The code should check for the heighest R^2 after the determination of the already used variables. And then determine the aic_value of the used predictors and the new one. As soon as the new aic_value is not smaller then the previous aic_value we have all the variable which have an influence or are highly connected with the GPP. The gaol is to find a model which can make the best prediction of the GPP.
+The visualization I got here shows a scatterplot between the GPP and the PPFD. Sadly I was not able to complete the loop the determine which predictors have influence to the GPP. My code does not loop another predictor and just takes the best one for the first run, which is the PPFD. The code should check for the highest R^2 after the determination of the already used variables. And then determine the aic_value of the used predictors and the new one. As soon as the new aic_value is not smaller then the previous aic_value we have all the variable which have an influence or are highly connected with the GPP. The gaol is to find a model which can make the best prediction of the GPP.

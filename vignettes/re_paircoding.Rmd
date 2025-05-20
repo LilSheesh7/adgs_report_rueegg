@@ -9,7 +9,7 @@ output:
 
 # Report exercise
 
-Links to the repositories with the pair-coding exercise
+Links to the repositories with the pair-coding exercise:
 
 My repository: https://github.com/LilSheesh7/colab_github_report
 forked from Rubens Flückinger (VanEend)

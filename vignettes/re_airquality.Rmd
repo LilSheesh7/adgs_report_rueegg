@@ -37,12 +37,11 @@ airquality_monthly_average <- airquality |>
             Solar.R = mean(Solar.R),
             Wind = mean(Wind),
             Temp = mean(Temp))
-
 ```
 
 ### Description of the dataset airquality
 
-The Dataset shows air quality meassurments in New York from May 1973 to September 1973. The variables and each units are: [,1] Ozone numeric Ozone (ppb) [,2] Solar.R numeric Solar R (lang) [,3] Wind numeric Wind (mph) [,4] Temp numeric Temperature (degrees F) [,5] Month numeric Month (1--12) [,6] Day numeric Day of month (1--31) Here the brackets [] shows the column of the variable. More Details of the dataset airquality are found with help(airquality). It can also been seen the times and location of the measurments of the diffrent variables. Daily readings of the following air quality values for May 1, 1973 (a Tuesday) to September 30, 1973. Ozone: Mean ozone in parts per billion from 1300 to 1500 hours at Roosevelt Island Solar.R: Solar radiation in Langleys in the frequency band 4000–7700 Angstroms from 0800 to 1200 hours at Central Park Wind: Average wind speed in miles per hour at 0700 and 1000 hours at LaGuardia Airport Temp: Maximum daily temperature in degrees Fahrenheit at LaGuardia Airport.
+The Dataset shows air quality measurements in New York from May 1973 to September 1973. The variables and each units are: [,1] Ozone numeric Ozone (ppb) [,2] Solar.R numeric Solar R (lang) [,3] Wind numeric Wind (mph) [,4] Temp numeric Temperature (degrees F) [,5] Month numeric Month (1--12) [,6] Day numeric Day of month (1--31) Here the brackets [] shows the column of the variable. More Details of the dataset airquality are found with help(airquality). It can also been seen the times and location of the measurements of the different variables. Daily readings of the following air quality values for May 1, 1973 (a Tuesday) to September 30, 1973. Ozone: Mean ozone in parts per billion from 1300 to 1500 hours at Roosevelt Island Solar.R: Solar radiation in Langleys in the frequency band 4000–7700 Angstroms from 0800 to 1200 hours at Central Park Wind: Average wind speed in miles per hour at 0700 and 1000 hours at LaGuardia Airport Temp: Maximum daily temperature in degrees Fahrenheit at LaGuardia Airport.
 
 ## Question which is answered with analyzing the dataset airquality
 
@@ -142,10 +141,11 @@ airquality_monthly_average |>
   scale_color_viridis_c() +
   theme(legend.position = c(0.2, 0.3))
 ```
-This graphic shows the change of Ozone during the summer of 1973 in New York. Additionaly it showas that when the windspeed is low, the concentration of ozone is high. 
+
+This graphic shows the change of Ozone during the summer of 1973 in New York. Additionally it shows that when the windspeed is low, the concentration of ozone is high. 
 
 
 ## Interpretation of the results
-The diffrent 1-3 figures above show that a higher windspeed reduce the ozone concentration. Firstly I thought that the windspeed has no connection with the ozone concentration. I was a little surprized after seeing those results. With analyzing the second figure i realized that there is not just a weak connections, the two variables have a strong correlation. I am not sure but it could be that with an higher windspeed the air travels faster and it brings new airmass with a lesser ozone concentration to the measurement station. 
+The different 1-3 figures above show that a higher windspeed reduce the ozone concentration. Firstly I thought that the windspeed has no connection with the ozone concentration. I was a little surprised after seeing those results. With analyzing the second figure i realized that there is not just a weak connections, the two variables have a strong correlation. I am not sure but it could be that with an higher windspeed the air travels faster and it brings new airmass with a lesser ozone concentration to the measurement station. 
 
 
