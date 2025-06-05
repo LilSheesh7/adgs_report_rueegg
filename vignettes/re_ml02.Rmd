@@ -9,7 +9,7 @@ output:
 
 # Report exercise
 
-```{r}
+```{r, message=FALSE, warning=FALSE}
 #Loading the libraries
 library(dplyr)
 library(ggplot2)
